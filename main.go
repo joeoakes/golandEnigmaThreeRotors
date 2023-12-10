@@ -38,7 +38,7 @@ func main() {
 	key := "abc" // Three rotor positions: rotorI, rotorII, and rotorIII
 
 	encryptedText := enigmaEncrypt(plaintext, key)
-	decryptedText := enigmaEncrypt(encryptedText, key) // Decryption is the same as encryption in an Enigma machine
+	decryptedText := enigmaDecrypt(encryptedText, key)
 
 	fmt.Println("Plaintext: ", plaintext)
 	fmt.Println("Encrypted Text: ", encryptedText)
@@ -46,6 +46,45 @@ func main() {
 }
 
 func enigmaEncrypt(plaintext, key string) string {
+	plaintext = strings.ToLower(plaintext)
+	var encrypted strings.Builder
+
+	// Initialize rotor positions
+	rotorI := []rune("abcdefghijklmnopqrstuvwxyz")
+	rotorII := []rune("abcdefghijklmnopqrstuvwxyz")
+	rotorIII := []rune("abcdefghijklmnopqrstuvwxyz")
+
+	// Set rotor positions based on the key
+	rotorPosition := []int{int(key[0] - 'a'), int(key[1] - 'a'), int(key[2] - 'a')}
+
+	for i, char := range plaintext {
+		if char >= 'a' && char <= 'z' {
+			// Rotate rotors before encryption
+			rotateRotor(&rotorI, rotorPosition[0])
+			if i%26 == 0 { // Rotate the second rotor every full rotation of the first rotor
+				rotateRotor(&rotorII, 1)
+			}
+			if i%(26*26) == 0 { // Rotate the third rotor every full rotation of the second rotor
+				rotateRotor(&rotorIII, 1)
+			}
+
+			// Encrypt the character through the rotors
+			encryptedChar := encryptChar(char, rotorI, rotorII, rotorIII)
+
+			// Rotate the first rotor after each character
+			rotateRotor(&rotorI, 1)
+
+			encrypted.WriteRune(encryptedChar)
+		} else {
+			// Non-alphabetic characters are not modified
+			encrypted.WriteRune(char)
+		}
+	}
+
+	return encrypted.String()
+}
+
+func enigmaDecrypt(plaintext, key string) string {
 	plaintext = strings.ToLower(plaintext)
 	var encrypted strings.Builder
 
