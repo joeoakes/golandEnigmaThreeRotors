@@ -5,76 +5,51 @@ import (
 	"strings"
 )
 
-// Define rotor mappings (substitution tables)
-var rotorI = map[rune]rune{
-	'a': 'e', 'b': 'k', 'c': 'm', 'd': 'f', 'e': 'l',
-	'f': 'g', 'g': 'd', 'h': 'q', 'i': 'v', 'j': 'z',
-	'k': 'n', 'l': 't', 'm': 'o', 'n': 'w', 'o': 'y',
-	'p': 'h', 'q': 'x', 'r': 'u', 's': 's', 't': 'p',
-	'u': 'a', 'v': 'i', 'w': 'b', 'x': 'r', 'y': 'c',
-	'z': 'j',
+type rotor struct {
+	wiring   string
+	position int
 }
 
-var rotorII = map[rune]rune{
-	'a': 'a', 'b': 'j', 'c': 'd', 'd': 'k', 'e': 's',
-	'f': 'i', 'g': 'r', 'h': 'u', 'i': 'x', 'j': 'b',
-	'k': 'l', 'l': 'h', 'm': 'w', 'n': 't', 'o': 'm',
-	'p': 'c', 'q': 'q', 'r': 'g', 's': 'z', 't': 'n',
-	'u': 'p', 'v': 'y', 'w': 'f', 'x': 'v', 'y': 'o',
-	'z': 'e',
-}
-
-var rotorIII = map[rune]rune{
-	'a': 'b', 'b': 'd', 'c': 'f', 'd': 'h', 'e': 'j',
-	'f': 'l', 'g': 'c', 'h': 'p', 'i': 'r', 'j': 't',
-	'k': 'x', 'l': 'v', 'm': 'z', 'n': 'n', 'o': 'y',
-	'p': 'e', 'q': 'i', 'r': 'w', 's': 'g', 't': 'a',
-	'u': 'k', 'v': 'm', 'w': 'u', 'x': 's', 'y': 'q',
-	'z': 'o',
-}
+var reflectorB = "YRUHQSLDPXNGOKMIEBFZCWVJAT"
+var alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 func main() {
-	plaintext := "hello"
-	key := "abc" // Three rotor positions: rotorI, rotorII, and rotorIII
+	rotorI := rotor{wiring: "EKMFLGDQVZNTOWYHXUSPAIBRCJ"}
+	rotorII := rotor{wiring: "AJDKSIRUXBLHWTMCQGZNPYFVOE"}
+	rotorIII := rotor{wiring: "BDFHJLCPRTXVZNYEIWGAKMUSQO"}
 
-	encryptedText := enigmaEncrypt(plaintext, key)
-	decryptedText := enigmaDecrypt(encryptedText, key)
-
+	plaintext := "HELLO"
+	encryptedText := enigmaEncrypt(plaintext, rotorI, rotorII, rotorIII)
 	fmt.Println("Plaintext: ", plaintext)
 	fmt.Println("Encrypted Text: ", encryptedText)
+
+	decryptedText := enigmaDecrypt(encryptedText, rotorI, rotorII, rotorIII)
 	fmt.Println("Decrypted Text: ", decryptedText)
 }
 
-func enigmaEncrypt(plaintext, key string) string {
-	plaintext = strings.ToLower(plaintext)
+func enigmaEncrypt(plaintext string, rotors ...rotor) string {
+	plaintext = strings.ToUpper(plaintext)
 	var encrypted strings.Builder
 
-	// Initialize rotor positions
-	rotorI := []rune("abcdefghijklmnopqrstuvwxyz")
-	rotorII := []rune("abcdefghijklmnopqrstuvwxyz")
-	rotorIII := []rune("abcdefghijklmnopqrstuvwxyz")
-
-	// Set rotor positions based on the key
-	rotorPosition := []int{int(key[0] - 'a'), int(key[1] - 'a'), int(key[2] - 'a')}
-
-	for i, char := range plaintext {
-		if char >= 'a' && char <= 'z' {
+	for _, char := range plaintext {
+		if char >= 'A' && char <= 'Z' {
 			// Rotate rotors before encryption
-			rotateRotor(&rotorI, rotorPosition[0])
-			if i%26 == 0 { // Rotate the second rotor every full rotation of the first rotor
-				rotateRotor(&rotorII, 1)
-			}
-			if i%(26*26) == 0 { // Rotate the third rotor every full rotation of the second rotor
-				rotateRotor(&rotorIII, 1)
-			}
+			//rotateRotors(&rotors)
 
-			// Encrypt the character through the rotors
-			encryptedChar := encryptChar(char, rotorI, rotorII, rotorIII)
+			// Pass the character through the rotors from right to left
+			char = substitute(char, rotors[2])
+			char = substitute(char, rotors[1])
+			char = substitute(char, rotors[0])
 
-			// Rotate the first rotor after each character
-			rotateRotor(&rotorI, 1)
+			// Pass the character through the reflector
+			char = reflector(char)
 
-			encrypted.WriteRune(encryptedChar)
+			// Pass the character through the rotors from left to right
+			char = substitute(char, rotors[0])
+			char = substitute(char, rotors[1])
+			char = substitute(char, rotors[2])
+
+			encrypted.WriteRune(char)
 		} else {
 			// Non-alphabetic characters are not modified
 			encrypted.WriteRune(char)
@@ -84,36 +59,24 @@ func enigmaEncrypt(plaintext, key string) string {
 	return encrypted.String()
 }
 
-func enigmaDecrypt(plaintext, key string) string {
-	plaintext = strings.ToLower(plaintext)
+func enigmaDecrypt(plaintext string, rotors ...rotor) string {
+	plaintext = strings.ToUpper(plaintext)
 	var encrypted strings.Builder
 
-	// Initialize rotor positions
-	rotorI := []rune("abcdefghijklmnopqrstuvwxyz")
-	rotorII := []rune("abcdefghijklmnopqrstuvwxyz")
-	rotorIII := []rune("abcdefghijklmnopqrstuvwxyz")
-
-	// Set rotor positions based on the key
-	rotorPosition := []int{int(key[0] - 'a'), int(key[1] - 'a'), int(key[2] - 'a')}
-
-	for i, char := range plaintext {
-		if char >= 'a' && char <= 'z' {
+	for _, char := range plaintext {
+		if char >= 'A' && char <= 'Z' {
 			// Rotate rotors before encryption
-			rotateRotor(&rotorI, rotorPosition[0])
-			if i%26 == 0 { // Rotate the second rotor every full rotation of the first rotor
-				rotateRotor(&rotorII, 1)
-			}
-			if i%(26*26) == 0 { // Rotate the third rotor every full rotation of the second rotor
-				rotateRotor(&rotorIII, 1)
-			}
+			//rotateRotors(&rotors)
 
-			// Encrypt the character through the rotors
-			encryptedChar := encryptChar(char, rotorI, rotorII, rotorIII)
+			char = decrypt(char, rotors[2])
+			char = decrypt(char, rotors[1])
+			char = decrypt(char, rotors[0])
+			char = reflector(char)
+			char = decrypt(char, rotors[0])
+			char = decrypt(char, rotors[1])
+			char = decrypt(char, rotors[2])
 
-			// Rotate the first rotor after each character
-			rotateRotor(&rotorI, 1)
-
-			encrypted.WriteRune(encryptedChar)
+			encrypted.WriteRune(char)
 		} else {
 			// Non-alphabetic characters are not modified
 			encrypted.WriteRune(char)
@@ -123,30 +86,26 @@ func enigmaDecrypt(plaintext, key string) string {
 	return encrypted.String()
 }
 
-func rotateRotor(rotor *[]rune, count int) {
-	for i := 0; i < count; i++ {
-		// Rotate the rotor by one position to the left
-		temp := (*rotor)[0]
-		copy((*rotor)[:], (*rotor)[1:])
-		(*rotor)[len(*rotor)-1] = temp
+func rotateRotors(rotors *[]rotor) {
+	for i := 0; i < len(*rotors); i++ {
+		(*rotors)[i].position++
+		if (*rotors)[i].position >= 26 {
+			(*rotors)[i].position = 0
+		}
 	}
 }
 
-func encryptChar(char rune, rotorI, rotorII, rotorIII []rune) rune {
-	// Pass the character through the rotors from right to left
-	char = rotorIII[char-'a']
-	char = rotorII[char-'a']
-	char = rotorI[char-'a']
+func substitute(char rune, rotor rotor) rune {
+	index := (int(char-'A') + rotor.position) % 26
+	return rune(rotor.wiring[index])
+}
 
-	// Perform reflection (simple back-and-forth)
-	char = rotorI[char-'a']
-	char = rotorII[char-'a']
-	char = rotorIII[char-'a']
+func decrypt(char rune, rotor rotor) rune {
+	index := strings.IndexRune(rotor.wiring, char)
+	return rune(alphabet[index])
+}
 
-	// Pass the character through the rotors from left to right
-	char = rune(strings.IndexRune(string(rotorI), char) + 'a')
-	char = rune(strings.IndexRune(string(rotorII), char) + 'a')
-	char = rune(strings.IndexRune(string(rotorIII), char) + 'a')
-
-	return char
+func reflector(char rune) rune {
+	index := strings.IndexRune(reflectorB, char)
+	return rune(alphabet[index])
 }
