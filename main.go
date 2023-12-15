@@ -33,9 +33,6 @@ func enigmaEncrypt(plaintext string, rotors ...rotor) string {
 
 	for _, char := range plaintext {
 		if char >= 'A' && char <= 'Z' {
-			// Rotate rotors before encryption
-			//rotateRotors(&rotors)
-
 			// Pass the character through the rotors from right to left
 			char = substitute(char, rotors[2])
 			char = substitute(char, rotors[1])
@@ -65,13 +62,12 @@ func enigmaDecrypt(plaintext string, rotors ...rotor) string {
 
 	for _, char := range plaintext {
 		if char >= 'A' && char <= 'Z' {
-			// Rotate rotors before encryption
-			//rotateRotors(&rotors)
-
 			char = decrypt(char, rotors[2])
 			char = decrypt(char, rotors[1])
 			char = decrypt(char, rotors[0])
+
 			char = reflector(char)
+
 			char = decrypt(char, rotors[0])
 			char = decrypt(char, rotors[1])
 			char = decrypt(char, rotors[2])
@@ -86,23 +82,14 @@ func enigmaDecrypt(plaintext string, rotors ...rotor) string {
 	return encrypted.String()
 }
 
-func rotateRotors(rotors *[]rotor) {
-	for i := 0; i < len(*rotors); i++ {
-		(*rotors)[i].position++
-		if (*rotors)[i].position >= 26 {
-			(*rotors)[i].position = 0
-		}
-	}
-}
-
 func substitute(char rune, rotor rotor) rune {
-	index := (int(char-'A') + rotor.position) % 26
-	return rune(rotor.wiring[index])
+	index := int(char-'A') % 26      //zero-index character position in the A-Z
+	return rune(rotor.wiring[index]) //Find that character at the index position on the rotor
 }
 
 func decrypt(char rune, rotor rotor) rune {
-	index := strings.IndexRune(rotor.wiring, char)
-	return rune(alphabet[index])
+	index := strings.IndexRune(rotor.wiring, char) % 26 //zero-index character position rotor
+	return rune(alphabet[index])                        //Find the character position in the A-Z
 }
 
 func reflector(char rune) rune {
